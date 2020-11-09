@@ -1,0 +1,135 @@
+---
+title: "Informe PISA"
+author: "Daniel Corral Ruiz"
+date: "09-11-2020"
+output:
+  html_document:
+    theme: journal
+    df_print: paged
+  prettydoc::html_pretty:
+    highlight: github
+---
+
+### Introducción
+El conjunto de datos se ha construido utilizando la puntuación media en Ciencias por país del Programa para la Evaluación Internacional de Estudiantes (PISA) 2006, junto con el GNI per cápita (paridad del poder adquisitivo, dólares de 2005), el índice educativo, el índice de salud y el índice de desarrollo humano de la ONU (HDI).
+
+### Variables estudiadas
+
+Las variables clave son las siguientes:
+
+- Overall Science Score (average score for 15 year olds): Puntuación global en ciencias (puntuación media para los jóvenes de 15 años)
+
+- Interest in science: El interés en la ciencia
+
+- Support for scientific inquiry: Apoyo a la investigación científica
+
+- Income Index: Índice de ingresos
+
+- Health Index: Índice de salud
+
+- Education Index: Índice de educación
+
+- Human Development Index (composed of the Income index, Health Index, and Education Index): Índice de Desarrollo Humano (compuesto por el índice de ingresos, el índice de salud y el índice de educación)
+
+
+### Carga de librerias
+```{r echo=FALSE,warning= FALSE, message=FALSE}
+library(here) # Comentar
+library(tidyverse)
+library(janitor) # Clean names
+library(skimr) # Beautiful Summarize
+library(magrittr) # Pipe operators
+library(corrplot) # Correlations
+library(ggcorrplot)  # Correlations
+library(PerformanceAnalytics) # Correlations
+library(leaps) # Model selection
+library(MASS)
+library(dplyr)
+library(readr)
+library(gvlma)
+library(MASS)
+library(car)
+library(glmnet)
+library(boot)
+library(leaps)
+library(rsample)
+library(skimr)
+library(imputeTS)
+library(gam)
+```
+
+### Carga de datos
+
+```{r Carga de datos}
+mData=read.csv("pisasci2006.csv")
+mData = na_mean(mData)
+head(mData)
+```
+Mediante la funcion "na_mean" sustituimos cada valor NA por el valor de la media de la variable.
+
+### Representación gráfica
+
+```{r}
+ggplot(data = mData, mapping = aes(x = Overall, y = HDI)) +
+  layer(geom = "point",stat = "identity",position = "identity") +
+  theme_bw() + theme(legend.key = element_blank())
+```
+
+
+```{r}
+skim(mData)
+```
+
+### Observar los grados de libertad 
+
+```{r}
+# SPLINES HEALTH
+splhealth <- smooth.spline(x = mData$Health, y = mData$Overall, cv = TRUE)
+splhealth$df
+# SPLINES EDU
+spledu <- smooth.spline(x = mData$Edu, y = mData$Overall, cv = TRUE)
+spledu$df
+# SPLINES HDI
+splhdi <- smooth.spline(x = mData$HDI, y = mData$Overall, cv = TRUE)
+splhdi$df
+# SPLINES INTEREST
+splinterest <- smooth.spline(x = mData$Interest, y = mData$Overall, cv = TRUE)
+splinterest$df
+# SPLINES SUPPORT
+splsupport <- smooth.spline(x = mData$Support, y = mData$Overall, cv = TRUE)
+splsupport$df
+# SPLINES INCOME
+splincome <- smooth.spline(x = mData$Income, y = mData$Overall, cv = TRUE)
+splincome$df
+```
+
+### Comparación de modelos 
+Modelo con todo splines:
+
+```{r}
+splinemodel <- gam(Overall ~ s(Interest) + s(Support) + s(Income) + s(Health) + s(Edu), data = mData)
+par(mfrow = c(2, 3))
+plot(splinemodel, se = TRUE, col = 'red', lwd = 2.5)
+```
+
+Segundo modelo:
+```{r}
+splinemodel2 <- gam(Overall ~ s(Interest) + s(Support) + s(Income) + Health + Edu, data = mData)
+par(mfrow = c(1, 3))
+plot(splinemodel2, se = TRUE, col = 'red', lwd = 2.5)
+```
+
+
+### Comparamos modelos
+
+```{r}
+anova(splinemodel,splinemodel2,test='F')
+```
+
+Modelo 2 > Modelo 1
+
+Resumen del modelo:
+```{r}
+summary(splinemodel2)
+```
+
